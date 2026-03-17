@@ -46,30 +46,27 @@ pub const Constraint = struct {
 pub fn execute(allocator: std.mem.Allocator, bytecode: []const u8, max_steps: usize) !SymbolicResult {
     var parsed = try parser.parse(allocator, bytecode);
     defer parser.deinit(&parsed);
-    
+
     var stack = std.ArrayListUnmanaged(Value){};
     defer stack.deinit(allocator);
-    
+
     const memory = try allocator.alloc(u8, 1024); // 1KB
     defer allocator.free(memory);
     @memset(memory, 0);
-    
+
     var storage = std.StringHashMap(Value).init(allocator);
     defer storage.deinit();
-    
+
     var pc: usize = 0;
     var steps: usize = 0;
     var constraints = std.ArrayListUnmanaged(Constraint){};
     defer constraints.deinit(allocator);
-    
+
     while (pc < parsed.instructions.len and steps < max_steps) : (steps += 1) {
         const instr = parsed.instructions[pc];
-        
+
         switch (instr.opcode) {
-            .push1, .push2, .push3, .push4, .push5, .push6, .push7, .push8,
-            .push9, .push10, .push11, .push12, .push13, .push14, .push15, .push16,
-            .push17, .push18, .push19, .push20, .push21, .push22, .push23, .push24,
-            .push25, .push26, .push27, .push28, .push29, .push30, .push31, .push32 => {
+            .push1, .push2, .push3, .push4, .push5, .push6, .push7, .push8, .push9, .push10, .push11, .push12, .push13, .push14, .push15, .push16, .push17, .push18, .push19, .push20, .push21, .push22, .push23, .push24, .push25, .push26, .push27, .push28, .push29, .push30, .push31, .push32 => {
                 // Push concrete value
                 var val: u256 = 0;
                 if (instr.push_data) |data| {
@@ -186,10 +183,10 @@ pub fn execute(allocator: std.mem.Allocator, bytecode: []const u8, max_steps: us
                 // Other opcodes - skip for now
             },
         }
-        
+
         pc += 1;
     }
-    
+
     return .{
         .reachable = true,
         .constraints = try constraints.toOwnedSlice(allocator),

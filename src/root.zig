@@ -1,5 +1,5 @@
 //! Solidity Zig Decompiler - Root Module
-//! 
+//!
 //! This is the main entry point for the decompiler library.
 //! Export all public modules here for easy importing.
 

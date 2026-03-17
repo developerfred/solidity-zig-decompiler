@@ -10,20 +10,20 @@ pub const GasCosts = struct {
     // Base costs
     base: u64 = 2,
     jumpdest: u64 = 1,
-    
+
     // Stack operations
     push: u64 = 3,
     pop: u64 = 2,
-    
+
     // Memory operations
     mload: u64 = 3,
     mstore: u64 = 3,
     mstore8: u64 = 3,
-    
+
     // Storage operations
     sload: u64 = 2100,
     sstore: u64 = 20000, // Cold storage
-    
+
     // Arithmetic
     add: u64 = 5,
     mul: u64 = 8,
@@ -33,13 +33,13 @@ pub const GasCosts = struct {
     addmod: u64 = 8,
     mulmod: u64 = 8,
     exp: u64 = 10, // Base only
-    
+
     // Comparison
     lt: u64 = 5,
     gt: u64 = 5,
     eq: u64 = 3,
     iszero: u64 = 3,
-    
+
     // Bitwise
     and_op: u64 = 5,
     or_op: u64 = 5,
@@ -47,36 +47,36 @@ pub const GasCosts = struct {
     not: u64 = 5,
     shl: u64 = 5,
     shr: u64 = 5,
-    
+
     // Hashing
     keccak256: u64 = 30, // Base
-    
+
     // Control flow
     jump: u64 = 8,
     jumpi: u64 = 10,
     jumpdest_op: u64 = 1,
-    
+
     // Calls
     call: u64 = 100, // Plus gas forwarded
     delegatecall: u64 = 100,
     staticcall: u64 = 100,
     create: u64 = 32000,
     create2: u64 = 32000,
-    
+
     // Terminating
     stop: u64 = 0,
     ret: u64 = 0,
     revert: u64 = 0,
     invalid: u64 = 0,
     selfdestruct: u64 = 5000, // New
-    
+
     // Logging
     log0: u64 = 375,
     log1: u64 = 750,
     log2: u64 = 1125,
     log3: u64 = 1500,
     log4: u64 = 1875,
-    
+
     // Environmental
     address: u64 = 2,
     balance: u64 = 400, // Cold
@@ -121,21 +121,21 @@ pub const GasItem = struct {
 pub fn analyze(allocator: std.mem.Allocator, bytecode: []const u8) !GasAnalysis {
     var parsed = try parser.parse(allocator, bytecode);
     defer parser.deinit(&parsed);
-    
+
     const costs = GasCosts{};
-    
+
     var breakdown_map = std.StringHashMap(GasItem).init(allocator);
     defer breakdown_map.deinit();
-    
+
     var total_gas: u64 = 0;
     var storage_ops: usize = 0;
     var memory_expansion: u64 = 0;
     var current_memory: usize = 0;
-    
+
     for (parsed.instructions) |instr| {
         const gas = getGasCost(&costs, instr.opcode);
         total_gas += gas;
-        
+
         // Track memory expansion
         if (instr.opcode == .mstore or instr.opcode == .mstore8) {
             if (instr.push_data) |data| {
@@ -148,12 +148,12 @@ pub fn analyze(allocator: std.mem.Allocator, bytecode: []const u8) !GasAnalysis 
                 }
             }
         }
-        
+
         // Track storage operations
         if (instr.opcode == .sstore) {
             storage_ops += 1;
         }
-        
+
         // Add to breakdown
         const name = opcodes.getName(instr.opcode);
         if (breakdown_map.get(name)) |*item| {
@@ -163,19 +163,19 @@ pub fn analyze(allocator: std.mem.Allocator, bytecode: []const u8) !GasAnalysis 
             try breakdown_map.put(name, .{ .opcode = name, .count = 1, .gas = gas });
         }
     }
-    
+
     // Convert map to slice
     var breakdown = std.ArrayList(GasItem).init(allocator);
     defer breakdown.deinit();
-    
+
     var iter = breakdown_map.iterator();
     while (iter.next()) |entry| {
         try breakdown.append(entry.value_ptr.*);
     }
-    
+
     // Sort by gas consumption
     std.sort.sort(GasItem, breakdown.items, {}, gasDesc);
-    
+
     return .{
         .total_gas = total_gas,
         .breakdown = try breakdown.toOwnedSlice(),
@@ -245,14 +245,9 @@ fn getGasCost(costs: *const GasCosts, opcode: opcodes.OpCode) u64 {
         .jump => costs.jump,
         .jumpi => costs.jumpi,
         .jumpdest => costs.jumpdest_op,
-        .push1, .push2, .push3, .push4, .push5, .push6, .push7, .push8,
-        .push9, .push10, .push11, .push12, .push13, .push14, .push15, .push16,
-        .push17, .push18, .push19, .push20, .push21, .push22, .push23, .push24,
-        .push25, .push26, .push27, .push28, .push29, .push30, .push31, .push32, .push0 => costs.push,
-        .dup1, .dup2, .dup3, .dup4, .dup5, .dup6, .dup7, .dup8,
-        .dup9, .dup10, .dup11, .dup12, .dup13, .dup14, .dup15, .dup16 => costs.push,
-        .swap1, .swap2, .swap3, .swap4, .swap5, .swap6, .swap7, .swap8,
-        .swap9, .swap10, .swap11, .swap12, .swap13, .swap14, .swap15, .swap16 => costs.push,
+        .push1, .push2, .push3, .push4, .push5, .push6, .push7, .push8, .push9, .push10, .push11, .push12, .push13, .push14, .push15, .push16, .push17, .push18, .push19, .push20, .push21, .push22, .push23, .push24, .push25, .push26, .push27, .push28, .push29, .push30, .push31, .push32, .push0 => costs.push,
+        .dup1, .dup2, .dup3, .dup4, .dup5, .dup6, .dup7, .dup8, .dup9, .dup10, .dup11, .dup12, .dup13, .dup14, .dup15, .dup16 => costs.push,
+        .swap1, .swap2, .swap3, .swap4, .swap5, .swap6, .swap7, .swap8, .swap9, .swap10, .swap11, .swap12, .swap13, .swap14, .swap15, .swap16 => costs.push,
         .log0 => costs.log0,
         .log1 => costs.log1,
         .log2 => costs.log2,

@@ -27,17 +27,17 @@ pub const DispatchType = enum {
 pub fn analyzeDispatchers(allocator: std.mem.Allocator, bytecode: []const u8) !DispatcherAnalysis {
     var parsed = try parser.parse(allocator, bytecode);
     defer parser.deinit(&parsed);
-    
+
     var list = std.ArrayListUnmanaged(Selector){};
-    
+
     var dispatch_type: DispatchType = .none;
-    
+
     // Look for PUSH instructions with 4 bytes (potential selectors)
     for (parsed.instructions) |instr| {
         if (instr.opcode == .push4 and instr.push_data != null and instr.push_data.?.len == 4) {
             var selector: [4]u8 = undefined;
             @memcpy(&selector, instr.push_data.?);
-            
+
             // Check if already exists
             var exists = false;
             for (list.items) |s| {
@@ -46,17 +46,17 @@ pub fn analyzeDispatchers(allocator: std.mem.Allocator, bytecode: []const u8) !D
                     break;
                 }
             }
-            
+
             if (!exists) {
                 try list.append(allocator, .{ .selector = selector, .pc = instr.pc, .confidence = 0.7 });
             }
         }
     }
-    
+
     if (list.items.len > 0) {
         dispatch_type = .legacy;
     }
-    
+
     return .{ .selectors = try list.toOwnedSlice(allocator), .dispatch_type = dispatch_type, .allocator = allocator };
 }
 

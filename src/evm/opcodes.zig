@@ -332,8 +332,7 @@ pub fn getName(op: OpCode) []const u8 {
         .invalid => "INVALID",
         .selfdestruct => "SELFDESTRUCT",
         .eof1 => "EOF1",
-        .reserved_0c, .reserved_0d, .reserved_0e, .reserved_0f,
-        .reserved_1e, .reserved_1f => "RESERVED",
+        .reserved_0c, .reserved_0d, .reserved_0e, .reserved_0f, .reserved_1e, .reserved_1f => "RESERVED",
     };
 }
 
@@ -349,7 +348,7 @@ pub fn getStackInputs(op: OpCode) u8 {
         .add, .mul, .sub, .div, .sdiv, .mod, .smod, .and_op, .or_op, .xor, .shl, .shr, .sar, .lt, .gt, .slt, .sgt, .eq => 2,
         .addmod, .mulmod, .exp => 3,
         .signextend, .byte => 2,
-        .iszero,         .not, .extcodesize, .extcodehash, .balance => 1,
+        .iszero, .not, .extcodesize, .extcodehash, .balance => 1,
         .calldataload, .mload, .sload => 1,
         .mstore, .mstore8, .sstore => 2,
         .keccak256 => 2,

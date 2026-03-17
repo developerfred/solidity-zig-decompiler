@@ -19,21 +19,21 @@ pub fn extract(allocator: std.mem.Allocator, bytecode: []const u8) !StringExtrac
     if (bytecode.len < MIN_STRING_LEN) {
         return .{ .strings = &.{}, .allocator = allocator };
     }
-    
+
     // Simple extraction - just find printable strings
     var list = std.ArrayListUnmanaged(EmbeddedString){};
-    
+
     var i: usize = 0;
     while (i + MIN_STRING_LEN <= bytecode.len) : (i += 1) {
         const remaining = bytecode[i..];
         const str = findAsciiString(remaining);
-        
+
         if (str.len >= MIN_STRING_LEN and isLikelyString(str)) {
             try list.append(allocator, .{ .value = str, .offset = i });
             i += str.len - 1;
         }
     }
-    
+
     return .{ .strings = try list.toOwnedSlice(allocator), .allocator = allocator };
 }
 

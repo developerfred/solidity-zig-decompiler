@@ -1,6 +1,6 @@
 // ============================================================================
 // Sourcify API Client
-// 
+//
 // Provides integration with Sourcify for fetching contract metadata and bytecode.
 // See: https://docs.sourcify.dev/docs/intro
 // ============================================================================
@@ -11,7 +11,7 @@ const std = @import("std");
 pub const SourcifyEndpoints = struct {
     pub const mainnet_api = "https://api.sourcify.dev";
     pub const mainnet_server = "https://sourcify.dev";
-    
+
     pub const testnet_api = "https://api.testnet.sourcify.dev";
     pub const testnet_server = "https://testnet.sourcify.dev";
 };
@@ -103,35 +103,35 @@ pub const SourcifyClient = struct {
         }
 
         const chain_id_num = @intFromEnum(self.chain_id);
-        
+
         // Build URL: /contracts/full/{chainId}/{address}
         var url_buf = std.ArrayList(u8).init(self.allocator);
         defer url_buf.deinit();
-        
+
         try url_buf.appendSlice(self.base_url);
         try url_buf.appendSlice("/contracts/full/");
         try url_buf.appendSlice(std.fmt.allocPrintZ(self.allocator, "{}", .{chain_id_num}) catch "");
         try url_buf.appendSlice("/");
         try url_buf.appendSlice(address);
-        
+
         const url = try std.Uri.parse(url_buf.items);
-        
+
         // Make request
         var header_buffer: [256]u8 = undefined;
         var request = try self.http_client.request(.GET, url, .{
             .header_buffer = &header_buffer,
         }, .{});
         defer request.deinit();
-        
+
         try request.start();
         try request.wait();
-        
+
         switch (request.response.status) {
             .ok => {
                 // Read response body
                 const body = try request.reader().readAllAlloc(self.allocator, 1024 * 1024);
                 defer self.allocator.free(body);
-                
+
                 return try self.parseContractResponse(address, chain_id_num, body);
             },
             .not_found => {
@@ -139,7 +139,7 @@ pub const SourcifyClient = struct {
             },
             else => {
                 return SourcifyError.ApiError;
-            }
+            },
         }
     }
 
@@ -150,30 +150,30 @@ pub const SourcifyClient = struct {
         }
 
         const chain_id_num = @intFromEnum(self.chain_id);
-        
+
         var url_buf = std.ArrayList(u8).init(self.allocator);
         defer url_buf.deinit();
-        
+
         try url_buf.appendSlice(self.base_url);
         try url_buf.appendSlice("/checkverification/");
         try url_buf.appendSlice(std.fmt.allocPrintZ(self.allocator, "{}", .{chain_id_num}) catch "");
         try url_buf.appendSlice("/");
         try url_buf.appendSlice(address);
-        
+
         const url = try std.Uri.parse(url_buf.items);
-        
+
         var header_buffer: [256]u8 = undefined;
         var request = try self.http_client.request(.GET, url, .{
             .header_buffer = &header_buffer,
         }, .{});
         defer request.deinit();
-        
+
         try request.start();
         try request.wait();
-        
+
         const body = try request.reader().readAllAlloc(self.allocator, 8192);
         defer self.allocator.free(body);
-        
+
         // Parse JSON response
         // Simplified: check for "perfect" or "partial" in response
         if (std.mem.indexOf(u8, body, "\"status\":\"perfect\"") != null) {
@@ -181,7 +181,7 @@ pub const SourcifyClient = struct {
         } else if (std.mem.indexOf(u8, body, "\"status\":\"partial\"") != null) {
             return .partial;
         }
-        
+
         return .none;
     }
 
@@ -189,32 +189,32 @@ pub const SourcifyClient = struct {
     pub fn listContracts(self: *SourcifyClient) ![][]const u8 {
         var url_buf = std.ArrayList(u8).init(self.allocator);
         defer url_buf.deinit();
-        
+
         try url_buf.appendSlice(self.base_url);
         try url_buf.appendSlice("/contracts/");
-        
+
         const url = try std.Uri.parse(url_buf.items);
-        
+
         var header_buffer: [256]u8 = undefined;
         var request = try self.http_client.request(.GET, url, .{
             .header_buffer = &header_buffer,
         }, .{});
         defer request.deinit();
-        
+
         try request.start();
         try request.wait();
-        
+
         const body = try request.reader().readAllAlloc(self.allocator, 1024 * 1024);
         defer self.allocator.free(body);
-        
+
         // Return addresses (simplified - would need proper JSON parsing)
         return &.{};
     }
 
-/// Parse contract response from Sourcify API
-fn parseContractResponse(_self: *SourcifyClient, address: []const u8, chain_id: u64, body: []const u8) !ContractMetadata {
-    _ = _self;
-    // Simple JSON parsing for key fields
+    /// Parse contract response from Sourcify API
+    fn parseContractResponse(_self: *SourcifyClient, address: []const u8, chain_id: u64, body: []const u8) !ContractMetadata {
+        _ = _self;
+        // Simple JSON parsing for key fields
         // Simple JSON parsing for key fields
         var metadata = ContractMetadata{
             .address = address,
@@ -222,7 +222,7 @@ fn parseContractResponse(_self: *SourcifyClient, address: []const u8, chain_id: 
             .bytecode = "",
             .runtime_bytecode = "",
         };
-        
+
         // Find bytecode in response
         if (std.mem.indexOf(u8, body, "\"bytecode\"") != null) {
             // Extract bytecode value - simplified
@@ -233,7 +233,7 @@ fn parseContractResponse(_self: *SourcifyClient, address: []const u8, chain_id: 
                 metadata.bytecode = body[value_start..end];
             }
         }
-        
+
         // Find runtime bytecode
         if (std.mem.indexOf(u8, body, "\"runtimeBytecode\"") != null) {
             const start = std.mem.indexOf(u8, body, "\"runtimeBytecode\":\"") orelse return SourcifyError.ParseError;
@@ -243,7 +243,7 @@ fn parseContractResponse(_self: *SourcifyClient, address: []const u8, chain_id: 
                 metadata.runtime_bytecode = body[value_start..end];
             }
         }
-        
+
         // Find contract name
         if (std.mem.indexOf(u8, body, "\"name\":\"") != null) {
             const start = std.mem.indexOf(u8, body, "\"name\":\"") orelse return SourcifyError.ParseError;
@@ -253,7 +253,7 @@ fn parseContractResponse(_self: *SourcifyClient, address: []const u8, chain_id: 
                 metadata.name = body[value_start..end];
             }
         }
-        
+
         return metadata;
     }
 };
@@ -262,7 +262,7 @@ fn parseContractResponse(_self: *SourcifyClient, address: []const u8, chain_id: 
 pub fn fetchBytecodeByAddress(allocator: std.mem.Allocator, address: []const u8, chain_id: ChainId) !ContractMetadata {
     var client = SourcifyClient.init(allocator, chain_id);
     defer client.deinit();
-    
+
     return try client.fetchBytecode(address);
 }
 
@@ -270,6 +270,6 @@ pub fn fetchBytecodeByAddress(allocator: std.mem.Allocator, address: []const u8,
 pub fn checkVerified(allocator: std.mem.Allocator, address: []const u8, chain_id: ChainId) !VerificationStatus {
     var client = SourcifyClient.init(allocator, chain_id);
     defer client.deinit();
-    
+
     return try client.checkVerification(address);
 }

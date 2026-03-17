@@ -7,25 +7,25 @@ const decompiler = @import("decompiler/main.zig");
 /// Parse hex string to bytes
 fn parseHexString(hex: []const u8) ![]const u8 {
     if (hex.len % 2 != 0) return error.InvalidHexLength;
-    
+
     const bytes = try std.heap.page_allocator.alloc(u8, hex.len / 2);
-    
+
     for (0..hex.len / 2) |i| {
         const hex_pair = hex[i * 2 .. i * 2 + 2];
         bytes[i] = try std.fmt.parseInt(u8, hex_pair, 16);
     }
-    
+
     return bytes;
 }
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.page_allocator);
     defer std.process.argsFree(std.heap.page_allocator, args);
-    
+
     if (args.len < 2) {
         std.debug.print("Solidity Zig Decompiler\n", .{});
         std.debug.print("=======================\n\n", .{});
-        std.debug.print("Usage: {s} <bytecode> [options]\n", .{ args[0] });
+        std.debug.print("Usage: {s} <bytecode> [options]\n", .{args[0]});
         std.debug.print("\nArguments:\n", .{});
         std.debug.print("  <bytecode>    Hex-encoded EVM bytecode (0x...)\n", .{});
         std.debug.print("\nOptions:\n", .{});
@@ -36,10 +36,10 @@ pub fn main() !void {
         std.debug.print("  --no-patterns Skip pattern detection\n", .{});
         return;
     }
-    
+
     var config: decompiler.Config = .{};
     var bytecode_arg: ?[]const u8 = null;
-    
+
     for (args[1..]) |arg| {
         if (std.mem.eql(u8, arg, "--verbose")) {
             config.verbose = true;
@@ -63,20 +63,20 @@ pub fn main() !void {
             }
         }
     }
-    
+
     const bytecode_source = bytecode_arg orelse {
         std.debug.print("Error: No bytecode or file provided\n", .{});
         return error.InvalidArguments;
     };
-    
+
     // Check if it's a file
     var bytecode: []const u8 = undefined;
-    
+
     if (std.fs.path.isAbsolute(bytecode_source)) {
         // It's a file path - read it
         const file = try std.fs.openFileAbsolute(bytecode_source, .{});
         defer file.close();
-        
+
         const file_size = try file.getEndPos();
         const buffer = try std.heap.page_allocator.alloc(u8, file_size);
         defer std.heap.page_allocator.free(buffer);
@@ -103,10 +103,10 @@ pub fn main() !void {
             bytecode = bytecode_source;
         }
     }
-    
+
     // Run decompiler
     const contract = try decompiler.decompile(std.heap.page_allocator, bytecode, config);
-    
+
     // Output result
     var buf: [4096]u8 = undefined;
     var fbs = std.io.FixedBufferStream([]u8){ .buffer = &buf, .pos = 0 };

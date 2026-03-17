@@ -18,21 +18,21 @@ pub fn buildCFG(allocator: std.mem.Allocator, parsed: *const parser.ParsedByteco
     // Find jumpdests
     var jumpdests = std.ArrayList(usize).init(allocator);
     defer jumpdests.deinit();
-    
+
     for (parsed.instructions) |instr| {
         if (instr.opcode == .jumpdest) {
             try jumpdests.append(instr.pc);
         }
     }
-    
+
     try jumpdests.append(0); // Entry point
     std.sort.sort(usize, jumpdests.items, {}, std.sort.asc(usize));
-    
+
     var blocks = try allocator.alloc(BasicBlock, jumpdests.items.len);
     for (jumpdests.items, 0..) |start_pc, i| {
         blocks[i] = .{ .id = i, .start_pc = start_pc, .end_pc = start_pc };
     }
-    
+
     return .{ .blocks = blocks, .allocator = allocator };
 }
 

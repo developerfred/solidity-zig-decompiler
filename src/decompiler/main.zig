@@ -47,30 +47,30 @@ pub fn decompile(allocator: std.mem.Allocator, bytecode: []const u8, config: Con
         .is_erc721 = false,
         .allocator = allocator,
     };
-    
+
     const allocator_to_use = allocator;
-    
+
     if (config.extract_strings) {
         const str = try evm_strings.extract(allocator_to_use, bytecode);
         contract.embedded_strings = str.strings;
     }
-    
+
     if (config.resolve_signatures) {
         var dispatcher = try evm_dispatcher.analyzeDispatchers(allocator_to_use, bytecode);
         defer evm_dispatcher.deinit(&dispatcher);
-        
+
         var func_list = std.ArrayListUnmanaged(DecompiledFunction){};
-        
+
         var signature_cache = evm_signatures.SignatureCache.init(allocator_to_use);
         defer signature_cache.deinit();
-        
+
         for (dispatcher.selectors) |sel| {
             const resolved = evm_signatures.resolve(sel.selector, &signature_cache) catch continue;
             try func_list.append(allocator_to_use, .{ .name = resolved.signature, .selector = sel.selector, .signature = resolved.signature });
         }
-        
+
         contract.functions = try func_list.toOwnedSlice(allocator_to_use);
-        
+
         // Detect patterns
         var erc20_count: usize = 0;
         for (dispatcher.selectors) |s| {
@@ -78,7 +78,8 @@ pub fn decompile(allocator: std.mem.Allocator, bytecode: []const u8, config: Con
             if (std.mem.startsWith(u8, hex, "0xa9059cbb") or
                 std.mem.startsWith(u8, hex, "0x095ea7b3") or
                 std.mem.startsWith(u8, hex, "0x70a08231") or
-                std.mem.startsWith(u8, hex, "0x18160ddd")) {
+                std.mem.startsWith(u8, hex, "0x18160ddd"))
+            {
                 erc20_count += 1;
             }
         }
@@ -87,7 +88,7 @@ pub fn decompile(allocator: std.mem.Allocator, bytecode: []const u8, config: Con
             contract.name = "ERC20";
         }
     }
-    
+
     // Check for proxy
     for (bytecode) |byte| {
         if (byte == 0xf4) {
@@ -96,15 +97,15 @@ pub fn decompile(allocator: std.mem.Allocator, bytecode: []const u8, config: Con
             break;
         }
     }
-    
+
     return contract;
 }
 
 pub fn generateSolidity(contract: *const DecompiledContract, writer: anytype) !void {
     try writer.writeAll("// SPDX-License-Identifier: UNLICENSED\n\n");
     try writer.writeAll("pragma solidity ^0.8.0;\n\n");
-    try writer.print("contract {s} {{\n\n", .{ contract.name });
-    
+    try writer.print("contract {s} {{\n\n", .{contract.name});
+
     for (contract.functions) |func| {
         try writer.writeAll("    // ");
         try writer.writeAll(evm_signatures.selectorToSlice(func.selector));
@@ -114,6 +115,6 @@ pub fn generateSolidity(contract: *const DecompiledContract, writer: anytype) !v
         try writer.writeAll("        // [Decompiled bytecode - implementation hidden]\n");
         try writer.writeAll("    }\n\n");
     }
-    
+
     try writer.writeAll("}\n");
 }
