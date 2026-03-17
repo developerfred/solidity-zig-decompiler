@@ -1,23 +1,38 @@
-//! By convention, root.zig is the root source file when making a library.
+//! Solidity Zig Decompiler - Root Module
+//! 
+//! This is the main entry point for the decompiler library.
+//! Export all public modules here for easy importing.
+
 const std = @import("std");
 
-pub fn bufferedPrint() !void {
-    // Stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+// Re-export all public modules
+pub const evm = struct {
+    pub const parser = @import("evm/parser.zig");
+    pub const signatures = @import("evm/signatures.zig");
+    pub const opcodes = @import("evm/opcodes.zig");
+    pub const strings = @import("evm/strings.zig");
+    pub const dispatcher = @import("evm/dispatcher.zig");
+    pub const cfg = @import("evm/cfg.zig");
+};
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+pub const decompiler = @import("decompiler/main.zig");
+pub const analysis = @import("analysis/gas.zig");
+pub const symbolic = @import("symbolic/executor.zig");
+pub const vulnerability = @import("vulnerability/scanner.zig");
 
-    try stdout.flush(); // Don't forget to flush!
+/// Library version
+pub const version = "0.1.0";
+
+/// Initialize the decompiler with default settings
+pub fn init() void {
+    // Placeholder for any initialization logic
 }
 
-pub fn add(a: i32, b: i32) i32 {
-    return a + b;
+/// Get library info
+pub fn getInfo() []const u8 {
+    return "Solidity Zig Decompiler v" ++ version;
 }
 
-test "basic add functionality" {
-    try std.testing.expect(add(3, 7) == 10);
+test "library version" {
+    try std.testing.expectEqualStrings("0.1.0", version);
 }

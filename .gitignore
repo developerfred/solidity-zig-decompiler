@@ -1,0 +1,29 @@
+# Build artifacts
+zig-out/
+zig-cache/
+build/
+*.o
+*.a
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+test_logs/
+coverage/
+
+# Temporary files
+*.tmp
+*.bak
