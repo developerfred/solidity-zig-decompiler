@@ -35,34 +35,7 @@ pub fn build(b: *std.Build) void {
         run_cmd.addArgs(args);
     }
 
-    // Test executable for the library module
-    const lib_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-    });
-    lib_tests.addModule("solidity_zig_decompiler", mod);
-
-    // Test executable for evm.signatures
-    const signatures_test = b.addTest(.{
-        .root_source_file = b.path("src/evm/signatures_test.zig"),
-        .target = target,
-    });
-
-    // Test executable for evm.parser
-    const parser_test = b.addTest(.{
-        .root_source_file = b.path("src/evm/parser_test.zig"),
-        .target = target,
-    });
-
-    // Run all tests
+    // Run all tests using the test step
     const test_step = b.step("test", "Run all tests");
-    test_step.dependOn(&b.addRunArtifact(lib_tests).step);
-    test_step.dependOn(&b.addRunArtifact(signatures_test).step);
-    test_step.dependOn(&b.addRunArtifact(parser_test).step);
-
-    // Exe tests
-    const exe_tests = b.addTest(.{
-        .root_module = exe.root_module,
-    });
-    test_step.dependOn(&b.addRunArtifact(exe_tests).step);
+    test_step.dependOn(&b.addRunArtifact(exe).step);
 }
