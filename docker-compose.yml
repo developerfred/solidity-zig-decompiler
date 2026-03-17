@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  decompiler:
+    build: .
+    container_name: solidity-zig-decompiler
+    volumes:
+      - .:/app
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    profiles:
+      - build
+      - run
+
+  shell:
+    build: .
+    container_name: solidity-zig-decompiler-shell
+    volumes:
+      - .:/app
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    command: ["/bin/sh"]
+    profiles:
+      - shell

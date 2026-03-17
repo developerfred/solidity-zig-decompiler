@@ -3,12 +3,21 @@ name: CI
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
   pull_request:
     branches: [main]
 
+env:
+  ZIG_VERSION: '0.15.2'
+
 jobs:
+  # ===========================================================================
+  # Test Jobs
+  # ===========================================================================
+  
   test:
-    name: Test on Zig ${{ matrix.zig-version }}
+    name: Test (Zig ${{ matrix.zig-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -24,14 +33,26 @@ jobs:
         with:
           version: ${{ matrix.zig-version }}
       
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/zig
+          key: ${{ runner.os }}-zig-${{ matrix.zig-version }}-${{ hashFiles('**/*.zig', '**/build.zig', '**/build.zig.zon') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-${{ matrix.zig-version }}-
+      
       - name: Build
         run: zig build
       
       - name: Run tests
-        run: zig build test || true
+        run: zig build test
 
+  # ===========================================================================
+  # Lint Jobs
+  # ===========================================================================
+  
   lint:
-    name: Code Quality
+    name: Lint
     runs-on: ubuntu-latest
     
     steps:
@@ -41,13 +62,28 @@ jobs:
       - name: Setup Zig
         uses: ziglang/setup-zig@v1
         with:
-          version: 0.15.2
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/zig
+          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('**/*.zig', '**/build.zig') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-
       
       - name: Run-fmt check
-        run: zig fmt --check . || true
+        run: zig fmt --check .
+      
+      - name: Run-fmt on src
+        run: zig fmt --check src/
 
-  build-release:
-    name: Build Release
+  # ===========================================================================
+  # Build Examples
+  # ===========================================================================
+  
+  examples:
+    name: Build Examples
     runs-on: ubuntu-latest
     
     steps:
@@ -57,13 +93,143 @@ jobs:
       - name: Setup Zig
         uses: ziglang/setup-zig@v1
         with:
-          version: 0.15.2
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/zig
+          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-examples
+      
+      - name: Build example 01
+        run: zig run examples/01_parse_bytecode.zig
+      
+      - name: Build example 02
+        run: zig run examples/02_resolve_signatures.zig
+      
+      - name: Build example 03
+        run: zig run examples/03_extract_strings.zig
+      
+      - name: Build example 04
+        run: zig run examples/04_defi_detection.zig
+
+  # ===========================================================================
+  # Release Builds (only on tags)
+  # ===========================================================================
+  
+  release:
+    name: Release Build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, lint]
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-linux
+            artifact_name: solidity-zig-decompiler-linux-x64
+          - os: macos-latest
+            target: x86_64-macos
+            artifact_name: solidity-zig-decompiler-macos-x64
+          - os: macos-latest
+            target: aarch64-macos
+            artifact_name: solidity-zig-decompiler-macos-arm64
+          - os: windows-latest
+            target: x86_64-windows
+            artifact_name: solidity-zig-decompiler-windows-x64
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Zig
+        uses: ziglang/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/zig
+          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ matrix.target }}
       
       - name: Build release
-        run: zig build -Drelease-small
+        run: zig build -Drelease-small -Dtarget=${{ matrix.target }}
+      
+      - name: Rename binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          mv zig-out/bin/solidity-zig-decompiler.exe ${{ matrix.artifact_name }}.exe
+      
+      - name: Rename binary (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          mv zig-out/bin/solidity-zig-decompiler ${{ matrix.artifact_name }}
+      
+      - name: Upload artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ matrix.artifact_name }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          asset_name: ${{ matrix.artifact_name }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          asset_content_type: application/octet-stream
 
+  # ===========================================================================
+  # Cross Compile Matrix
+  # ===========================================================================
+  
+  cross-compile:
+    name: Cross Compile (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [
+          'x86_64-linux',
+          'aarch64-linux', 
+          'x86_64-windows',
+          'aarch64-macos',
+          'x86_64-macos',
+          'arm64-android',
+          'riscv64-linux'
+        ]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Zig
+        uses: ziglang/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/zig
+          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ matrix.target }}
+      
+      - name: Cross compile
+        run: zig build -Dtarget=${{ matrix.target }}
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: zig-out/bin/*
+          retention-days: 1
+
+  # ===========================================================================
+  # Security Audit
+  # ===========================================================================
+  
   security:
-    name: Security Analysis
+    name: Security
     runs-on: ubuntu-latest
     
     steps:
@@ -73,7 +239,16 @@ jobs:
       - name: Setup Zig
         uses: ziglang/setup-zig@v1
         with:
-          version: 0.15.2
+          version: ${{ env.ZIG_VERSION }}
       
-      - name: Build with release-safe
-        run: zig build -Drelease-safe || true
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/zig
+          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-security
+      
+      - name: Build release-safe
+        run: zig build -Drelease-safe
+      
+      - name: Build debug
+        run: zig build
