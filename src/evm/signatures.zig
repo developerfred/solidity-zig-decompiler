@@ -163,6 +163,17 @@ fn lookupDefiSignature(hex: []const u8) ?[]const u8 {
     if (std.mem.eql(u8, hex, "0x52ef6b2c")) return "facetAddresses()";
     if (std.mem.eql(u8, hex, "0xadfca15e")) return "facetFunctionSelectors(address)";
 
+    // Li.FI Protocol (Cross-chain liquidity aggregation)
+    // Li.FI Diamond: 0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE
+    if (std.mem.eql(u8, hex, "0xa1257d8f")) return "swapTokensGeneric((address,address,address,uint256,uint256,uint256,address,bytes)[],(address,address,address,address,uint256,bytes,address,address,uint256,bytes)[],(address,address,address,address,uint256,bool,address,bytes)[],address,address)";
+    if (std.mem.eql(u8, hex, "0x7c665dfc")) return "startBridgeTokensViaLiFi((address,address,address,uint256,uint256,address,bytes),(address,uint256,address,bytes))";
+    if (std.mem.eql(u8, hex, "0x1e1d1d6f")) return "swapAndStartBridgeTokensViaLiFi((address,address,address,uint256,uint256,address,bytes),(address,uint256,address,bytes))";
+    if (std.mem.eql(u8, hex, "0x0d4fd0cb")) return "swapAndStartBridgeTokensViaLiFi((address,address,uint256,uint256,bytes),address,uint256,address,bytes)";
+    if (std.mem.eql(u8, hex, "0x2a1ec87e")) return "startBridgeTokensGeneric((address,address,address,uint256,uint256,address,bytes),(address,uint256,address,bytes),address)";
+    if (std.mem.eql(u8, hex, "0x3be2a24b")) return "swapAndStartBridgeTokensGeneric((address,address,address,uint256,uint256,address,bytes)[],(address,address,address,address,uint256,bool,address,bytes)[],(address,address,address,address,uint256,bytes,address,address,uint256,bytes)[],address)";
+    if (std.mem.eql(u8, hex, "0x54787c40")) return "swap((address,address,address,uint256,uint256,address))";
+    if (std.mem.eql(u8, hex, "0x2f2ff05c")) return "addFacet((address,uint8,bytes4[],address,bytes))";
+
     // Beacon Proxy
     if (std.mem.eql(u8, hex, "0x5f360067")) return "beacon()"; // Beacon proxy
     if (std.mem.eql(u8, hex, "0x2d0335ab")) return "upgradeBeaconToAndCall(address,bytes)";
