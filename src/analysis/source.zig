@@ -512,6 +512,9 @@ pub fn prettyPrint(code: SolidityCode, allocator: std.mem.Allocator) ![]u8 {
     }
     
     for (code.contracts) |contract| {
+        _ = contract; // unused for now
+    }
+}
 
 /// Simple Solidity generation without memory allocations
 pub fn generateSimple(bytecode: []const u8, allocator: std.mem.Allocator) ![]u8 {
@@ -541,7 +544,7 @@ pub fn generateSimple(bytecode: []const u8, allocator: std.mem.Allocator) ![]u8 
     var func_count: usize = 0;
     
     // Look for function selectors
-    for (bytecode) |b, i| {
+    for (bytecode, 0..) |b, i| {
         if (b >= 0x60 and b <= 0x7f) { // PUSH
             if (i + 4 < bytecode.len) {
                 // Check if next 4 bytes look like selector
@@ -563,58 +566,5 @@ pub fn generateSimple(bytecode: []const u8, allocator: std.mem.Allocator) ![]u8 
     
     try writer.writeAll("}\n");
     
-    return buf.toOwnedSlice(allocator);
-}
-            const nm = if (sv.name.len > 0) sv.name else "value";
-            try writer.print("    {s} {s} {s};\n", .{ vis, typ, nm });
-        }
-
-        if (contract.state_variables.len > 0) try writer.writeAll("\n");
-
-        // Functions
-        if (contract.functions.len == 0) {
-            try writer.writeAll("    // No functions detected\n");
-        } else {
-            for (contract.functions) |func| {
-                const vis = if (func.visibility.len > 0) func.visibility else "external";
-                const mut = if (func.mutability.len > 0) func.mutability else "view";
-                const nm = if (func.name.len > 0) func.name else "fallback";
-                try writer.print("    {s} {s} {s}(", .{ vis, mut, nm });
-                
-                for (func.params, 0..) |p, idx| {
-                    if (idx > 0) try writer.writeAll(", ");
-                    const pt = if (p.type_str.len > 0) p.type_str else "uint256";
-                    const pn = if (p.name.len > 0) p.name else "param";
-                    try writer.print("{s} {s}", .{ pt, pn });
-                }
-                try writer.writeAll(")");
-
-                if (func.returns.len > 0) {
-                    try writer.writeAll(" returns (");
-                    for (func.returns, 0..) |r, idx| {
-                        if (idx > 0) try writer.writeAll(", ");
-                        const rt = if (r.type_str.len > 0) r.type_str else "uint256";
-                        const rn = if (r.name.len > 0) r.name else "ret";
-                        try writer.print("{s} {s}", .{ rt, rn });
-                    }
-                    try writer.writeAll(")");
-                }
-
-                try writer.writeAll(" {\n");
-                if (func.body.len > 0) {
-                    for (func.body) |stmt| {
-                        const txt = if (stmt.text.len > 0) stmt.text else "revert();";
-                        try writer.print("    {s}\n", .{txt});
-                    }
-                } else {
-                    try writer.writeAll("    // ...\n");
-                }
-                try writer.writeAll("    }\n\n");
-            }
-        }
-
-        try writer.writeAll("}\n");
-    }
-
     return buf.toOwnedSlice(allocator);
 }

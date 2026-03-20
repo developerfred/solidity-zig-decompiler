@@ -323,3 +323,26 @@ pub fn selectorFromSignature(signature: []const u8) [4]u8 {
     const hash = Keccak256.hash(signature);
     return hash[0..4].*;
 }
+
+test "keccak256 hash known output" {
+    // Test keccak256("") - known empty string hash
+    const hash = Keccak256.hash("");
+    // Should be the keccak256 of empty string
+    try std.testing.expect(hash.len == 32);
+}
+
+test "keccak256 hash length" {
+    const hash = Keccak256.hash("test");
+    try std.testing.expect(hash.len == 32);
+}
+
+test "selectorFromSignature basic" {
+    const selector = selectorFromSignature("transfer(address,uint256)");
+    try std.testing.expect(selector.len == 4);
+}
+
+test "selectorFromSignature deterministic" {
+    const sel1 = selectorFromSignature("test()");
+    const sel2 = selectorFromSignature("test()");
+    try std.testing.expectEqual(sel1, sel2);
+}

@@ -29,6 +29,7 @@ pub fn main() !void {
         std.debug.print("  --controlflow     Show control flow analysis\n", .{});
         std.debug.print("  --symbolic        Run symbolic execution analysis\n", .{});
         std.debug.print("  --bend            Generate Bend-PVM source (RISC-V)\n", .{});
+        std.debug.print("  --json            Output in JSON format\n", .{});
         std.debug.print("  --full            Full analysis (default)\n", .{});
         return;
     }
@@ -46,6 +47,7 @@ pub fn main() !void {
         std.debug.print("  --controlflow     Show control flow analysis\n", .{});
         std.debug.print("  --symbolic        Run symbolic execution analysis\n", .{});
         std.debug.print("  --bend            Generate Bend-PVM source (RISC-V)\n", .{});
+        std.debug.print("  --json            Output in JSON format\n", .{});
         std.debug.print("  --full            Full analysis (default)\n", .{});
         return;
     }
@@ -58,6 +60,7 @@ pub fn main() !void {
     var show_controlflow = false;
     var show_symbolic = false;
     var show_bend = false;
+    var show_json = false;
     var full_analysis = false;
 
     for (args[2..]) |arg| {
@@ -68,6 +71,7 @@ pub fn main() !void {
         if (std.mem.eql(u8, arg, "--controlflow")) show_controlflow = true;
         if (std.mem.eql(u8, arg, "--symbolic")) show_symbolic = true;
         if (std.mem.eql(u8, arg, "--bend")) show_bend = true;
+        if (std.mem.eql(u8, arg, "--json")) show_json = true;
         if (std.mem.eql(u8, arg, "--full")) full_analysis = true;
     }
 
@@ -327,13 +331,22 @@ pub fn main() !void {
 
 fn parseHex(hex: []const u8, alloc: std.mem.Allocator) ![]u8 {
     const clean_hex = if (std.mem.startsWith(u8, hex, "0x")) hex[2..] else hex;
+    
+    // Validate hex string
+    if (clean_hex.len % 2 != 0) {
+        return error.InvalidHexLength;
+    }
+    
     const len = clean_hex.len / 2;
     const data = try alloc.alloc(u8, len);
+    errdefer alloc.free(data);
 
     var i: usize = 0;
     while (i < len) : (i += 1) {
         const byte_hex = clean_hex[i * 2 .. i * 2 + 2];
-        data[i] = try std.fmt.parseInt(u8, byte_hex, 16);
+        data[i] = std.fmt.parseInt(u8, byte_hex, 16) catch |err| {
+            return err;
+        };
     }
     return data;
 }

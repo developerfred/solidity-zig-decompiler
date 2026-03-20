@@ -1,0 +1,28 @@
+# Zig
+.zig-cache/
+zig-cache/
+zig-out/
+*.zig-e
+
+# Build
+build/
+*.o
+*.a
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Test outputs
+test_output/

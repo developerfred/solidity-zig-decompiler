@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Zig
+        uses: dtolnay/zig-action@0.15.2
+        
+      - name: Build
+        run: zig build
+        
+      - name: Run tests
+        run: zig build test
+        
+  test-cli:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Zig
+        uses: dtolnay/zig-action@0.15.2
+        
+      - name: Build
+        run: zig build
+        
+      - name: Test CLI
+        run: |
+          ./zig-out/bin/decompile_contracts 0x608060405234801560011f5ffd5b505f80fd5b50634e3f15f3 --disasm

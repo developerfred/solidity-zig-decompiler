@@ -328,3 +328,63 @@ pub fn detectBytecodeType(bytecode: []const u8) BytecodeType {
     if (isEVM(bytecode)) return .evm;
     return .unknown;
 }
+
+test "registerName basic" {
+    const name0 = registerName(0);
+    try std.testing.expectEqualStrings("zero", name0);
+    
+    const name1 = registerName(1);
+    try std.testing.expectEqualStrings("ra", name1);
+    
+    const name10 = registerName(10);
+    try std.testing.expectEqualStrings("a0", name10);
+}
+
+test "getName basic" {
+    // I-type: addi
+    const instr_addi = Instruction{
+        .raw = 0x00000093, // addi x1, x0, 0
+        .opcode_byte = 0x13,
+        .rd = 1,
+        .rs1 = 0,
+        .rs2 = 0,
+        .funct3 = 0,
+        .funct7 = 0,
+        .imm = 0,
+        .pc = 0,
+    };
+    const name = getName(instr_addi);
+    try std.testing.expectEqualStrings("addi", name);
+}
+
+test "isBendPVM valid" {
+    // Valid RISC-V: 4-byte aligned, valid opcodes
+    const riscv_bytecode = "\x93\x00\x00\x00\x13\x00\x00\x00";
+    try std.testing.expect(isBendPVM(riscv_bytecode));
+}
+
+test "isBendPVM invalid" {
+    // Too short
+    try std.testing.expect(!isBendPVM("\x00\x00"));
+    
+    // Not 4-byte aligned
+    try std.testing.expect(!isBendPVM("\x00\x00\x00"));
+}
+
+test "isEVM basic" {
+    // Valid EVM bytecode
+    const evm_bytecode = "\x60\x80\x60\x40\x52\x60\x00"; // PUSH1 0x80 PUSH1 0x40 MSTORE PUSH1 0x00
+    try std.testing.expect(isEVM(evm_bytecode));
+}
+
+test "detectBytecodeType riscv" {
+    const riscv_bytecode = "\x93\x00\x00\x00\x13\x00\x00\x00";
+    const bt = detectBytecodeType(riscv_bytecode);
+    try std.testing.expectEqual(BytecodeType.bend_pvm, bt);
+}
+
+test "detectBytecodeType evm" {
+    const evm_bytecode = "\x60\x80\x60\x40\x52";
+    const bt = detectBytecodeType(evm_bytecode);
+    try std.testing.expectEqual(BytecodeType.evm, bt);
+}
