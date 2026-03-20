@@ -173,4 +173,4 @@ src/
 
 ## License
 
-MIT
+GNU General Public License v3 (GPL-3.0) - See LICENSE file

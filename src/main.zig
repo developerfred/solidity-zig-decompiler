@@ -6,6 +6,7 @@ const bend_opcodes = @import("bend/opcodes.zig");
 const bend_source = @import("bend/source.zig");
 const analysis_types = @import("analysis/types.zig");
 const analysis_controlflow = @import("analysis/controlflow.zig");
+const analysis_constructor = @import("analysis/constructor.zig");
 const symbolic_executor = @import("symbolic/executor.zig");
 
 pub fn main() !void {
@@ -23,6 +24,7 @@ pub fn main() !void {
         std.debug.print("  Auto-detects bytecode type\n", .{});
         std.debug.print("\nOptions:\n", .{});
         std.debug.print("  --disasm          Show disassembly\n", .{});
+        std.debug.print("  --constructor     Show constructor analysis\n", .{});
         std.debug.print("  --abi             Show extracted function selectors\n", .{});
         std.debug.print("  --solidity        Generate Solidity-like code\n", .{});
         std.debug.print("  --types           Show type inference analysis\n", .{});
@@ -41,6 +43,7 @@ pub fn main() !void {
         std.debug.print("  Hex-encoded EVM bytecode (with or without 0x prefix)\n", .{});
         std.debug.print("\nOptions:\n", .{});
         std.debug.print("  --disasm          Show disassembly\n", .{});
+        std.debug.print("  --constructor     Show constructor analysis\n", .{});
         std.debug.print("  --abi             Show extracted function selectors\n", .{});
         std.debug.print("  --solidity        Generate Solidity-like code\n", .{});
         std.debug.print("  --types           Show type inference analysis\n", .{});
@@ -54,6 +57,7 @@ pub fn main() !void {
 
     const bytecode_hex = args[1];
     var show_disasm = false;
+    var show_constructor = false;
     var show_abi = false;
     var show_solidity = false;
     var show_types = false;
@@ -65,6 +69,7 @@ pub fn main() !void {
 
     for (args[2..]) |arg| {
         if (std.mem.eql(u8, arg, "--disasm")) show_disasm = true;
+        if (std.mem.eql(u8, arg, "--constructor")) show_constructor = true;
         if (std.mem.eql(u8, arg, "--abi")) show_abi = true;
         if (std.mem.eql(u8, arg, "--solidity")) show_solidity = true;
         if (std.mem.eql(u8, arg, "--types")) show_types = true;
@@ -109,6 +114,16 @@ pub fn main() !void {
         var dis = evm_disassembler.Disassembler.init(alloc);
         std.debug.print("\n=== Disassembly ===\n", .{});
         try dis.disassembleToStdout(bytecode);
+    }
+
+    // Constructor analysis
+    if (full_analysis or show_constructor) {
+        std.debug.print("\n=== Constructor Analysis ===\n", .{});
+        
+        var constructor_info = try analysis_constructor.analyzeConstructor(bytecode, alloc);
+        defer constructor_info.deinit(alloc);
+        
+        analysis_constructor.printConstructorInfo(&constructor_info);
     }
 
     if (full_analysis or show_abi) {
@@ -211,7 +226,7 @@ pub fn main() !void {
                     if (next.opcode == .sload or next.opcode == .sstore) {
                         const slot = evm_opcodes.readPushDataAsU64(instr.push_data.?);
                         // Ignore allocation failure - slot tracking is best-effort
-                        _ = slots_seen.put(slot, {});
+                        slots_seen.put(slot, {}) catch {};
                     }
                 }
             }
@@ -219,7 +234,7 @@ pub fn main() !void {
         
         // Default slot 0 if no slots found
         if (slots_seen.count() == 0) {
-            _ = slots_seen.put(0, {});
+            slots_seen.put(0, {}) catch {};
         }
         
         // Print state variables
@@ -242,7 +257,7 @@ pub fn main() !void {
             switch (instr.opcode) {
                 .log0, .log1, .log2, .log3, .log4 => {
                     // Count topics to determine event (best-effort)
-                    _ = events_found.put(events_found.count(), {});
+                    events_found.put(events_found.count(), {}) catch {};
                 },
                 else => {},
             }
@@ -324,7 +339,7 @@ pub fn main() !void {
             defer executor.deinit();
             
             // Continue execution even if it fails - best-effort analysis
-            _ = executor.executeEntryPoint(0);
+            executor.executeEntryPoint(0) catch {};
             
             std.debug.print("\n// Symbolic execution completed\n", .{});
         }
