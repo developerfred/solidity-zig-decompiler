@@ -7,6 +7,7 @@ const bend_source = @import("bend/source.zig");
 const analysis_types = @import("analysis/types.zig");
 const analysis_controlflow = @import("analysis/controlflow.zig");
 const analysis_constructor = @import("analysis/constructor.zig");
+const analysis_library = @import("analysis/library.zig");
 const symbolic_executor = @import("symbolic/executor.zig");
 
 pub fn main() !void {
@@ -25,6 +26,7 @@ pub fn main() !void {
         std.debug.print("\nOptions:\n", .{});
         std.debug.print("  --disasm          Show disassembly\n", .{});
         std.debug.print("  --constructor     Show constructor analysis\n", .{});
+        std.debug.print("  --library         Show library detection\n", .{});
         std.debug.print("  --abi             Show extracted function selectors\n", .{});
         std.debug.print("  --solidity        Generate Solidity-like code\n", .{});
         std.debug.print("  --types           Show type inference analysis\n", .{});
@@ -44,6 +46,7 @@ pub fn main() !void {
         std.debug.print("\nOptions:\n", .{});
         std.debug.print("  --disasm          Show disassembly\n", .{});
         std.debug.print("  --constructor     Show constructor analysis\n", .{});
+        std.debug.print("  --library         Show library detection\n", .{});
         std.debug.print("  --abi             Show extracted function selectors\n", .{});
         std.debug.print("  --solidity        Generate Solidity-like code\n", .{});
         std.debug.print("  --types           Show type inference analysis\n", .{});
@@ -58,6 +61,7 @@ pub fn main() !void {
     const bytecode_hex = args[1];
     var show_disasm = false;
     var show_constructor = false;
+    var show_library = false;
     var show_abi = false;
     var show_solidity = false;
     var show_types = false;
@@ -70,6 +74,7 @@ pub fn main() !void {
     for (args[2..]) |arg| {
         if (std.mem.eql(u8, arg, "--disasm")) show_disasm = true;
         if (std.mem.eql(u8, arg, "--constructor")) show_constructor = true;
+        if (std.mem.eql(u8, arg, "--library")) show_library = true;
         if (std.mem.eql(u8, arg, "--abi")) show_abi = true;
         if (std.mem.eql(u8, arg, "--solidity")) show_solidity = true;
         if (std.mem.eql(u8, arg, "--types")) show_types = true;
@@ -124,6 +129,16 @@ pub fn main() !void {
         defer constructor_info.deinit(alloc);
         
         analysis_constructor.printConstructorInfo(&constructor_info);
+    }
+
+    // Library detection
+    if (full_analysis or show_library) {
+        std.debug.print("\n=== Library Detection ===\n", .{});
+        
+        var library_info = try analysis_library.analyzeLibraries(bytecode, alloc);
+        defer library_info.deinit(alloc);
+        
+        analysis_library.printLibraryInfo(&library_info);
     }
 
     if (full_analysis or show_abi) {
