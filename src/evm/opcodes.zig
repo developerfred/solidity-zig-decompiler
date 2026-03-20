@@ -173,8 +173,8 @@ pub const Opcode = enum(u8) {
     selfdestruct = 0xff,
 };
 
-/// Get the name of an opcode
-pub fn getName(opcode: Opcode) []const u8 {
+/// Get the name of an opcode - hot path, inline for performance
+pub inline fn getName(opcode: Opcode) []const u8 {
     return switch (opcode) {
         .stop => "STOP",
         .add => "ADD",
@@ -324,28 +324,28 @@ pub fn getName(opcode: Opcode) []const u8 {
     };
 }
 
-/// Check if opcode is a push operation
-pub fn isPush(opcode: Opcode) bool {
+/// Check if opcode is a push operation - hot path
+pub inline fn isPush(opcode: Opcode) bool {
     return @intFromEnum(opcode) >= 0x60 and @intFromEnum(opcode) <= 0x7f;
 }
 
-/// Check if opcode is a dup operation
-pub fn isDup(opcode: Opcode) bool {
+/// Check if opcode is a dup operation - hot path
+pub inline fn isDup(opcode: Opcode) bool {
     return @intFromEnum(opcode) >= 0x80 and @intFromEnum(opcode) <= 0x8f;
 }
 
-/// Check if opcode is a swap operation
-pub fn isSwap(opcode: Opcode) bool {
+/// Check if opcode is a swap operation - hot path
+pub inline fn isSwap(opcode: Opcode) bool {
     return @intFromEnum(opcode) >= 0x90 and @intFromEnum(opcode) <= 0x9f;
 }
 
 /// Check if opcode is a log operation
-pub fn isLog(opcode: Opcode) bool {
+pub inline fn isLog(opcode: Opcode) bool {
     return @intFromEnum(opcode) >= 0xa0 and @intFromEnum(opcode) <= 0xa4;
 }
 
-/// Get the number of bytes for a push operation
-pub fn getPushSize(opcode: Opcode) u8 {
+/// Get the number of bytes for a push operation - hot path
+pub inline fn getPushSize(opcode: Opcode) u8 {
     if (!isPush(opcode)) return 0;
     return @intFromEnum(opcode) - 0x60 + 1;
 }
@@ -457,8 +457,13 @@ pub const Instruction = struct {
 
 /// Parse bytecode into instructions
 pub fn parseInstructions(allocator: std.mem.Allocator, bytecode: []const u8) ![]Instruction {
+    // Pre-allocate with estimated capacity: avg instruction is ~2 bytes
     var instructions: std.ArrayListUnmanaged(Instruction) = .{};
     errdefer instructions.deinit(allocator);
+    
+    // Reserve estimated capacity to reduce reallocations
+    const estimated_count = @max(bytecode.len / 2, 16);
+    try instructions.ensureTotalCapacity(allocator, estimated_count);
 
     var pc: usize = 0;
     while (pc < bytecode.len) {

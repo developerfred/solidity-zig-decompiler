@@ -28,20 +28,23 @@ pub const Disassembler = struct {
         return buffer.toOwnedSlice(self.allocator);
     }
 
-    /// Format a single instruction
+    /// Format a single instruction - optimized with fixed buffer
     fn formatInstruction(_: Disassembler, allocator: std.mem.Allocator, buffer: *std.ArrayListUnmanaged(u8), instr: Instruction) !void {
         const name = opcodes.getName(instr.opcode);
-        const pc_str = std.fmt.allocPrint(allocator, "{x:0>4}", .{instr.pc}) catch "";
-        defer allocator.free(pc_str);
+        
+        // Use fixed-size buffer for PC (4 hex chars = 2 bytes max)
+        var pc_buf: [4]u8 = undefined;
+        const pc_str = std.fmt.bufPrint(&pc_buf, "{x:0>4}", .{instr.pc}) catch "";
         try buffer.appendSlice(allocator, pc_str);
 
         if (instr.push_data) |data| {
             try buffer.appendSlice(allocator, " ");
             try buffer.appendSlice(allocator, name);
             try buffer.appendSlice(allocator, " 0x");
+            // Use fixed buffer per byte (2 hex chars max)
             for (data) |b| {
-                const byte_str = std.fmt.allocPrint(allocator, "{x}", .{b}) catch "";
-                defer allocator.free(byte_str);
+                var byte_buf: [2]u8 = undefined;
+                const byte_str = std.fmt.bufPrint(&byte_buf, "{x}", .{b}) catch "";
                 try buffer.appendSlice(allocator, byte_str);
             }
         } else {
