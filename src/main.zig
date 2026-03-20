@@ -183,6 +183,47 @@ pub fn main() !void {
         const type_str = analysis_types.TypeAnalyzer.typeToString(result.type);
         std.debug.print("  slot0: {s} (confidence: {d:.2})\n", .{ type_str, result.confidence });
         
+        // Detect slot packing (best effort)
+        if (type_analyzer.detectSlotPacking(bytecode)) |pinfo| {
+            if (pinfo.confidence > 0) {
+                std.debug.print("\n--- Slot Packing Detected ---\n", .{});
+                std.debug.print("  Confidence: {d:.2}\n", .{pinfo.confidence});
+                for (pinfo.packed_slots) |pv| {
+                    std.debug.print("  Offset {d}: {s} ({d} bytes)\n", .{ pv.slot_offset, pv.type_str, pv.byte_size });
+                }
+            }
+        } else |_| {}
+        
+        // Detect mappings (best effort)
+        if (type_analyzer.detectMappings(bytecode)) |minfo| {
+            if (minfo.confidence > 0) {
+                std.debug.print("\n--- Mappings Detected ---\n", .{});
+                for (minfo.mappings) |mr| {
+                    std.debug.print("  mapping({s} => {s}) at slot {d}\n", .{ mr.key_type, mr.value_type, mr.slot });
+                }
+            }
+        } else |_| {}
+        
+        // Detect arrays (best effort)
+        if (type_analyzer.detectArrays(bytecode)) |ainfo| {
+            if (ainfo.confidence > 0) {
+                std.debug.print("\n--- Arrays Detected ---\n", .{});
+                for (ainfo.arrays) |ar| {
+                    std.debug.print("  Array at slot {d}: {s} (dynamic: {})\n", .{ ar.slot, ar.element_type, ar.is_dynamic });
+                }
+            }
+        } else |_| {}
+        
+        // Detect structs (best effort)
+        if (type_analyzer.detectStructs(bytecode)) |sinfo| {
+            if (sinfo.confidence > 0) {
+                std.debug.print("\n--- Structs Detected ---\n", .{});
+                for (sinfo.structs) |sf| {
+                    std.debug.print("  {s}: {s} (slot {d})\n", .{ sf.name, sf.field_type, sf.slot });
+                }
+            }
+        } else |_| {}
+        
         // Analyze function parameters
         std.debug.print("\n--- Function Parameters ---\n", .{});
         
