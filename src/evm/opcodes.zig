@@ -516,11 +516,140 @@ pub fn readPushDataAsU64(data: []const u8) u64 {
     return result;
 }
 
-test "opcode parsing" {
+test "opcode parsing - basic arithmetic" {
     const bytecode = [_]u8{ 0x60, 0x05, 0x01 }; // PUSH1 5, ADD
     const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
 
     try std.testing.expectEqual(@as(usize, 2), instructions.len);
     try std.testing.expectEqual(Opcode.push1, instructions[0].opcode);
     try std.testing.expectEqual(Opcode.add, instructions[1].opcode);
+}
+
+test "opcode parsing - push data" {
+    const bytecode = [_]u8{ 0x60, 0xFF, 0x50 }; // PUSH1 0xFF, POP
+    const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
+
+    try std.testing.expectEqual(@as(usize, 2), instructions.len);
+    try std.testing.expectEqual(Opcode.push1, instructions[0].opcode);
+    try std.testing.expectEqual(0xFF, instructions[0].push_data.?[0]);
+}
+
+test "opcode parsing - PUSH2" {
+    const bytecode = [_]u8{ 0x61, 0x01, 0x02, 0x50 }; // PUSH2 0x0102, POP
+    const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
+
+    try std.testing.expectEqual(@as(usize, 2), instructions.len);
+    try std.testing.expectEqual(Opcode.push2, instructions[0].opcode);
+    // PUSH2 pushes 2 bytes, read as u64
+    try std.testing.expectEqual(@as(u64, 0x0102), readPushDataAsU64(instructions[0].push_data.?));
+}
+
+test "opcode parsing - stop and revert" {
+    const bytecode = [_]u8{ 0x00, 0xfd }; // STOP, REVERT
+    const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
+
+    try std.testing.expectEqual(@as(usize, 2), instructions.len);
+    try std.testing.expectEqual(Opcode.stop, instructions[0].opcode);
+    try std.testing.expectEqual(Opcode.revert, instructions[1].opcode);
+}
+
+test "opcode parsing - DUP and SWAP" {
+    const bytecode = [_]u8{ 0x80, 0x90 }; // DUP1, SWAP1
+    const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
+
+    try std.testing.expectEqual(@as(usize, 2), instructions.len);
+    try std.testing.expectEqual(Opcode.dup1, instructions[0].opcode);
+    try std.testing.expectEqual(Opcode.swap1, instructions[1].opcode);
+}
+
+test "opcode parsing - memory operations" {
+    const bytecode = [_]u8{ 0x60, 0x40, 0x52, 0x60, 0x00, 0x51 }; // PUSH1 0x40, MSTORE, PUSH1 0x00, MLOAD
+    const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
+
+    try std.testing.expectEqual(@as(usize, 4), instructions.len);
+    try std.testing.expectEqual(Opcode.mstore, instructions[1].opcode);
+    try std.testing.expectEqual(Opcode.mload, instructions[3].opcode);
+}
+
+test "opcode parsing - storage operations" {
+    const bytecode = [_]u8{ 0x60, 0x00, 0x54, 0x55 }; // PUSH1 0x00, SLOAD, SSTORE
+    const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
+
+    try std.testing.expectEqual(@as(usize, 3), instructions.len);
+    try std.testing.expectEqual(Opcode.sload, instructions[1].opcode);
+    try std.testing.expectEqual(Opcode.sstore, instructions[2].opcode);
+}
+
+test "opcode parsing - control flow" {
+    const bytecode = [_]u8{ 0x56, 0x5b }; // JUMP, JUMPDEST
+    const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+    defer std.testing.allocator.free(instructions);
+
+    try std.testing.expectEqual(@as(usize, 2), instructions.len);
+    try std.testing.expectEqual(Opcode.jump, instructions[0].opcode);
+    try std.testing.expectEqual(Opcode.jumpdest, instructions[1].opcode);
+}
+
+test "readPushDataAsU64" {
+    const data = [_]u8{ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
+    const result = readPushDataAsU64(&data);
+    try std.testing.expectEqual(@as(u64, 0x0102030405060708), result);
+}
+
+test "readPushDataAsU64 - single byte" {
+    const data = [_]u8{ 0x42 };
+    const result = readPushDataAsU64(&data);
+    try std.testing.expectEqual(@as(u64, 0x42), result);
+}
+
+// Fuzz tests - ensure parser handles edge cases
+test "fuzz - empty bytecode" {
+    const instructions = try parseInstructions(std.testing.allocator, "");
+    defer std.testing.allocator.free(instructions);
+    try std.testing.expectEqual(@as(usize, 0), instructions.len);
+}
+
+test "fuzz - single byte" {
+    // Test all single byte values - should not crash
+    var i: u8 = 0;
+    while (i < 255) : (i += 1) {
+        const bytecode = [_]u8{i};
+        const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+        defer std.testing.allocator.free(instructions);
+        try std.testing.expect(instructions.len > 0);
+    }
+}
+
+test "fuzz - push opcodes edge cases" {
+    // Test all push opcodes (0x60-0x7f) with incomplete data
+    var i: u8 = 0x60;
+    while (i <= 0x7f) : (i += 1) {
+        var bytecode: [1]u8 = undefined;
+        bytecode[0] = i;
+        const instructions = try parseInstructions(std.testing.allocator, &bytecode);
+        defer std.testing.allocator.free(instructions);
+        // Should handle gracefully
+        try std.testing.expect(instructions.len > 0);
+    }
+}
+
+test "fuzz - common Solidity patterns" {
+    // Common Solidity bytecode patterns
+    const patterns = .{
+        "608060405234801560011f5ffd5b505f80fd",
+        "608060405260e060017f60205260606040",
+    };
+    
+    inline for (patterns) |pattern| {
+        const instructions = try parseInstructions(std.testing.allocator, pattern);
+        defer std.testing.allocator.free(instructions);
+        try std.testing.expect(instructions.len > 0);
+    }
 }

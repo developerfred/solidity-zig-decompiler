@@ -245,3 +245,30 @@ pub fn printCompilerInfo(info: *const CompilerInfo) void {
     
     std.debug.print("  Confidence: {d:.0}%\n", .{info.confidence * 100});
 }
+
+test "detectCompiler - basic EVM" {
+    // Simple bytecode with common Solidity pattern
+    const bytecode = "608060405234801560011f5ffd5b505f80fd";
+    const info = detectCompiler(bytecode);
+    
+    try std.testing.expect(info.confidence > 0);
+    try std.testing.expect(info.compiler.len > 0);
+}
+
+test "detectCompiler - empty bytecode" {
+    const bytecode = "";
+    const info = detectCompiler(bytecode);
+    
+    // Should return default info
+    try std.testing.expect(info.confidence == 0);
+    try std.testing.expectEqualStrings("Unknown", info.compiler);
+}
+
+test "detectCompiler - push0 detection (0.8.20+)" {
+    // Bytecode with PUSH0 (0x5f) - Solidity 0.8.20+
+    const bytecode = "5f52600861004b57006080526020606040";
+    const info = detectCompiler(bytecode);
+    
+    // PUSH0 was introduced in Solidity 0.8.20
+    try std.testing.expect(info.solidity_version != null);
+}

@@ -82,5 +82,61 @@ test "disassembler basic" {
     const result = try dis.disassemble(&bytecode);
     defer allocator.free(result);
 
-    std.debug.print("\nDisassembly:\n{s}\n", .{result});
+    // Should contain the expected opcodes
+    try std.testing.expect(std.mem.indexOf(u8, result, "PUSH1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "ADD") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "JUMP") != null);
+}
+
+test "disassembler memory operations" {
+    // PUSH1 0x40, MSTORE, PUSH1 0x00, MLOAD
+    const bytecode = [_]u8{ 0x60, 0x40, 0x52, 0x60, 0x00, 0x51 };
+    const allocator = std.testing.allocator;
+    const dis = Disassembler.init(allocator);
+
+    const result = try dis.disassemble(&bytecode);
+    defer allocator.free(result);
+
+    try std.testing.expect(std.mem.indexOf(u8, result, "MSTORE") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "MLOAD") != null);
+}
+
+test "disassembler storage operations" {
+    // PUSH1 0x00, SLOAD, PUSH1 0x00, SSTORE
+    const bytecode = [_]u8{ 0x60, 0x00, 0x54, 0x60, 0x00, 0x55 };
+    const allocator = std.testing.allocator;
+    const dis = Disassembler.init(allocator);
+
+    const result = try dis.disassemble(&bytecode);
+    defer allocator.free(result);
+
+    try std.testing.expect(std.mem.indexOf(u8, result, "SLOAD") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "SSTORE") != null);
+}
+
+test "disassembler control flow" {
+    // JUMPDEST, JUMP
+    const bytecode = [_]u8{ 0x5b, 0x56 };
+    const allocator = std.testing.allocator;
+    const dis = Disassembler.init(allocator);
+
+    const result = try dis.disassemble(&bytecode);
+    defer allocator.free(result);
+
+    try std.testing.expect(std.mem.indexOf(u8, result, "JUMPDEST") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "JUMP") != null);
+}
+
+test "disassembler push values" {
+    // PUSH2 with value
+    const bytecode = [_]u8{ 0x61, 0x01, 0x02 };
+    const allocator = std.testing.allocator;
+    const dis = Disassembler.init(allocator);
+
+    const result = try dis.disassemble(&bytecode);
+    defer allocator.free(result);
+
+    // Should contain PUSH2 and the pushed value
+    try std.testing.expect(std.mem.indexOf(u8, result, "PUSH2") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "0x") != null);
 }
