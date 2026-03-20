@@ -210,7 +210,8 @@ pub fn main() !void {
                     const next = instructions[i + 1];
                     if (next.opcode == .sload or next.opcode == .sstore) {
                         const slot = evm_opcodes.readPushDataAsU64(instr.push_data.?);
-                        slots_seen.put(slot, {}) catch {};
+                        // Ignore allocation failure - slot tracking is best-effort
+                        _ = slots_seen.put(slot, {});
                     }
                 }
             }
@@ -218,7 +219,7 @@ pub fn main() !void {
         
         // Default slot 0 if no slots found
         if (slots_seen.count() == 0) {
-            slots_seen.put(0, {}) catch {};
+            _ = slots_seen.put(0, {});
         }
         
         // Print state variables
@@ -240,8 +241,8 @@ pub fn main() !void {
         for (instructions) |instr| {
             switch (instr.opcode) {
                 .log0, .log1, .log2, .log3, .log4 => {
-                    // Count topics to determine event
-                    events_found.put(events_found.count(), {}) catch {};
+                    // Count topics to determine event (best-effort)
+                    _ = events_found.put(events_found.count(), {});
                 },
                 else => {},
             }
@@ -322,7 +323,8 @@ pub fn main() !void {
             };
             defer executor.deinit();
             
-            executor.executeEntryPoint(0) catch {};
+            // Continue execution even if it fails - best-effort analysis
+            _ = executor.executeEntryPoint(0);
             
             std.debug.print("\n// Symbolic execution completed\n", .{});
         }

@@ -39,7 +39,8 @@ pub const Decompiler = struct {
         // Find function entry points
         const entry_points = try self.findFunctionSelectors(runtime);
         for (entry_points) |pc| {
-            executor.executeEntryPoint(pc) catch {};
+            // Best-effort execution - ignore failures
+            _ = executor.executeEntryPoint(pc);
         }
 
         return result;
