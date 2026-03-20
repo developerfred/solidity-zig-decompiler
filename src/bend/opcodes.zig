@@ -53,6 +53,10 @@ pub fn parseInstructions(allocator: std.mem.Allocator, bytecode: []const u8) ![]
     var instructions: std.ArrayListUnmanaged(Instruction) = .{};
     errdefer instructions.deinit(allocator);
     
+    // Pre-allocate with estimated capacity (each instruction is 4 bytes)
+    const estimated_count = @max(bytecode.len / 4, 16);
+    try instructions.ensureTotalCapacity(allocator, estimated_count);
+    
     var pc: usize = 0;
     while (pc + 4 <= bytecode.len) {
         // Read 32-bit instruction (little endian)
@@ -158,8 +162,8 @@ pub fn registerName(reg: u5) []const u8 {
     return names[reg];
 }
 
-/// Get instruction name from opcode
-pub fn getName(instr: Instruction) []const u8 {
+/// Get instruction name from opcode - hot path
+pub inline fn getName(instr: Instruction) []const u8 {
     const op = instr.opcode_byte;
     const f3 = instr.funct3;
     const f7 = instr.funct7;
